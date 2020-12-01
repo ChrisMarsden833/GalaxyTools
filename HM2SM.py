@@ -22,6 +22,12 @@ def halo_mass_to_stellar_mass(halo_mass, z, formula="Grylls19", scatter=0.11):
         z_parameter = np.divide(z, z + 1)
         m_10, shm_norm_10, beta10, gamma10 = 11.590, 0.0351, 1.376, 0.608
         m_11, shm_norm_11, beta11, gamma11 = 1.195, -0.0247, -0.826, 0.329
+    elif formula == "NoKnee":
+        z_parameter = np.divide(z, z + 1)
+        m_10, shm_norm_10, beta10, gamma10 = 11.590, 0.0351, 0.0, 0.608
+        m_11, shm_norm_11, beta11, gamma11 = 1.195, -0.0247, -0.826, 0.329
+
+
     else:
         assert False, "Unrecognised formula"
 
@@ -46,13 +52,13 @@ def stellar_mass_to_halo_mass(stellar_mass, z, formula="Grylls19"):
         z = np.array(stellar_mass)
         halo_masses = np.zeros_like(stellar_mass)
         for i, zi in enumerate(z):
-            halo_array = np.linspace(5, 20, 1000)
-            SM_array = halo_mass_to_stellar_mass(halo_array, zi, formula)
-            sm2hm = interp1d(SM_array, halo_array)
+            halo_array = np.linspace(5, 20, 100000)
+            SM_array = halo_mass_to_stellar_mass(halo_array, zi, formula, scatter = 0)
+            sm2hm = interp1d(SM_array, halo_array, bounds_error=False, fill_value="extrapolate")
             halo_masses[i] = sm2hm(stellar_mass[i])
         return halo_masses
     else:
-        halo_array = np.linspace(5, 20, 1000)
-        SM_array = halo_mass_to_stellar_mass(halo_array, z, formula)
+        halo_array = np.linspace(5, 20, 100000)
+        SM_array = halo_mass_to_stellar_mass(halo_array, z, formula, scatter = 0)
         sm2hm = interp1d(SM_array, halo_array)
         return sm2hm(stellar_mass)

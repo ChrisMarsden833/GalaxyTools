@@ -5,7 +5,7 @@ from scipy import interpolate
 import matplotlib.pyplot as plt
 
 
-def get_data(path="~/Files/data/SDSS/Catalog_SDSS_complete.dat"):
+def get_data(path="~/data/SDSS/Catalog_SDSS_complete.dat"):
     """ Internal function to read in (and filter) the SDSS catalog
     :params path: string, the path to the SDSS file.
     :returns StellarMass, SersicIndex, Size, VMax: numpy arrays of approprate
@@ -17,7 +17,7 @@ def get_data(path="~/Files/data/SDSS/Catalog_SDSS_complete.dat"):
     SersicIndex = np.array(df['n_bulge'])
     StellarMass = np.array(df['MsMendSerExp'])
     VMax = np.array(df["Vmaxwt"])
-    Re = np.array(df["logReSerExp"])
+    Re = np.array(df["logReSerExpCircNotTrunc"])
 
     # Create flags to remove offending galaxies
     flag_central = df["NewLCentSat"] == 1. # Only centrals
@@ -149,35 +149,34 @@ def AssignSersicIndex(input_masses, scatter=False, mag=1):
 
 
 def SDSS_Sizes_Fit(sm, z=0, incGamma = True):
-    
-    '''
-    res = 10**(0.0447320 * sm**3 + \
-                -1.255528 * sm **2 + \
-                11.994643 * sm + \
-                -38.796147)
-    '''
-    smp = 10**(sm+0.25)
+
+    smp = 10**(sm)
     res = (10**-0.314) * (smp**0.042) * (1 + smp/(10**10.537))**0.76
     # This is now just a modified version of the RN/Mosleh fit...
 
     isarray_sm = True if hasattr(sm, "__len__") else  False
-    isarray_z = True  if hasattr(z, "__len__")  else  False
+    isarray_z = True if hasattr(z, "__len__")  else  False
 
     if isarray_sm and isarray_z:
         assert len(sm) == len(z), "sm and z are unequal lengths: {} and {} respectively".format(len(sm), len(z))
-    
-    gamma = (1/0.85) * (sm - 10.75)
-    
+
+    if type(incGamma) == bool:
+        gamma = (1/0.85) * (sm - 10.75)
+    elif (type(incGamma) == float) or (type(incGamma) == int):
+        gamma = incGamma
+    else:
+        assert False, "Unregonised type for incGamma {}. Value is: {}".format(str(type(incGamma)), incGamma)
+
     mi = 0
 
-    if isarray_sm:
-        gamma[gamma < mi] = mi 
+    if isarray_sm and hasattr(gamma, "__len__"):
+        gamma[gamma < mi] = mi
     else:
         if gamma < mi:
             gamma = mi
 
     if incGamma:
-        res = res * (1+z)**-gamma
+        res = res * (1.+z)**-gamma
 
     return res
 
