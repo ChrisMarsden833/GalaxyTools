@@ -73,7 +73,7 @@ def Assign_Size(input_masses, scatter = False, mag = 1):
     dev = np.sqrt(std_wrong[nonzero][valid_den]/den[valid_den])
 
     get_Size = interpolate.interp1d(bins[0:-1][array != 0], array[array != 0], bounds_error=False, fill_value= ( np.amin(array[array != 0]), np.amax(array[array != 0]) ) )
- 
+
     get_size_Error = interpolate.interp1d(bins[0:-1][nonzero][valid_den], dev,
                                          bounds_error=False, fill_value="extrapolate")
 
@@ -187,7 +187,7 @@ def SDSS_Sersic_Fit(sm, minsm = 8, natmin = 1.6):
                -3.18145729 * sm +\
                10.14652827 )
     isarray_sm = True if hasattr(sm, "__len__") else  False
-    
+
     if isarray_sm:
         res[sm < minsm] = natmin
     else:
