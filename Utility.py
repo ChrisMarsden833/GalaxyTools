@@ -2,6 +2,10 @@ import numpy as np
 import scipy.stats as stats
 
 def binnedMean(bins, data2bin,  data2mean, vmax):
+    """ Function to do binned means (and errors) with vmax weighting.
+
+    Saves a lot of time
+    """
     assert len(data2bin) == len(data2mean) ==  len(vmax),\
         "The length of supplied data(s) (data2bin {}, data2mean {}, vmax {}) are not consistent".format(len(data2bin), len(data2mean), len(vmax))
 

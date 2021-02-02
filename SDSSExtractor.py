@@ -48,7 +48,8 @@ def Assign_Size(input_masses, scatter = False, mag = 1):
     StellarMass, SersicIndex, Size, VMax = get_data()
 
     # Bin by sm
-    bins = np.arange(0., 30.0, 0.05)
+    width = 0.05
+    bins = np.arange(0., 30.0, width)
 
     # Weighted average by VMax
     array, edges, numbers = stats.binned_statistic(StellarMass, VMax*Size, statistic = 'sum', bins = bins)
@@ -72,9 +73,12 @@ def Assign_Size(input_masses, scatter = False, mag = 1):
     valid_den = den != 0
     dev = np.sqrt(std_wrong[nonzero][valid_den]/den[valid_den])
 
-    get_Size = interpolate.interp1d(bins[0:-1][array != 0], array[array != 0], bounds_error=False, fill_value= ( np.amin(array[array != 0]), np.amax(array[array != 0]) ) )
+    get_Size = interpolate.interp1d((bins[0:-1]+width/2)[array != 0],
+                                    array[array != 0], bounds_error=False,
+                                    fill_value=(np.amin(array[array != 0]), np.amax(array[array != 0])))
 
-    get_size_Error = interpolate.interp1d(bins[0:-1][nonzero][valid_den], dev,
+
+    get_size_Error = interpolate.interp1d((bins[0:-1]+width/2)[nonzero][valid_den], dev,
                                          bounds_error=False, fill_value="extrapolate")
 
     result = get_Size(input_masses)
@@ -148,7 +152,11 @@ def AssignSersicIndex(input_masses, scatter=False, mag=1):
     return result
 
 
-def SDSS_Sizes_Fit(sm, z=0, incGamma = True):
+def SDSS_Sizes_Fit(sm, z=0, incGamma = "Marsden"):
+
+    args = [3.04965733e-03, 9.67029240e-02, -3.91008421e+01, 2.04401878e-01, -4.29464785e+00]
+    def gammaFunc(sm, a1, a2, a3, a4, a5):
+        return a1 * sm * ((sm * a2) ** a3 + (sm * a4) ** a5) ** -1
 
     smp = 10**(sm)
     res = (10**-0.314) * (smp**0.042) * (1 + smp/(10**10.537))**0.76
@@ -160,23 +168,16 @@ def SDSS_Sizes_Fit(sm, z=0, incGamma = True):
     if isarray_sm and isarray_z:
         assert len(sm) == len(z), "sm and z are unequal lengths: {} and {} respectively".format(len(sm), len(z))
 
-    if type(incGamma) == bool:
+
+    if incGamma == "Marsden" or bool(incGamma) == True:
+        gamma = gammaFunc(sm, *args)
+    elif incGamma == "RN":
         gamma = (1/0.85) * (sm - 10.75)
-    elif (type(incGamma) == float) or (type(incGamma) == int):
-        gamma = incGamma
+        gamma[gamma < 0] = 0
     else:
         assert False, "Unregonised type for incGamma {}. Value is: {}".format(str(type(incGamma)), incGamma)
 
-    mi = 0
-
-    if isarray_sm and hasattr(gamma, "__len__"):
-        gamma[gamma < mi] = mi
-    else:
-        if gamma < mi:
-            gamma = mi
-
-    if incGamma:
-        res = res * (1.+z)**-gamma
+    res = res * (1.+z)**-gamma
 
     return res
 

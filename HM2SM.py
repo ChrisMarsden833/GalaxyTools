@@ -6,13 +6,13 @@ from scipy.interpolate import interp1d
 from scipy.optimize import curve_fit
 from tqdm import tqdm
 
-sys.path.insert(0, "/Users/chris/Documents/PhD/ProjectSigma/D-STEEL/dsteel/")
+sys.path.insert(0, "/Users/chris/Documents/ProjectSigma/D-STEEL/dsteel/")
 from semi_analytic_catalog import generate_parents_catalogue
 from colossus.cosmology import cosmology
 cosmo = cosmology.setCosmology("planck18")
 
 
-def halo_mass_to_stellar_mass(halo_mass, z, formula="Grylls19", scatter=0.11):
+def halo_mass_to_stellar_mass(halo_mass, z, formula="Moster", scatter=0.11):
     """Function to generate stellar masses from halo masses.
     This is based on Grylls 2019, but also has the option to use the
     parameters from Moster. This is a simplified version of Pip's
