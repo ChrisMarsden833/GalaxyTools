@@ -196,6 +196,13 @@ def SDSS_Sersic_Fit(sm, minsm = 8, natmin = 1.6):
             res = natmin
     return res
 
+def n2SM(n):
+    # Sersic Index to stellar mass
+    mass_array = np.linspace(8, 13, 100)
+    sersic_array = SDSS_Sersic_Fit(mass_array)
+    n2m = interpolate.interp1d(sersic_array, mass_array, bounds_error=False, fill_value='extrapolate')
+    return n2m(n)
+
 if __name__ == "__main__":
     stellar_masses = np.linspace(9, 12)
 
