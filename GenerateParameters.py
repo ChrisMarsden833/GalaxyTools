@@ -15,10 +15,6 @@ import darkmatter
 from Utility import binnedMean
 
 def GetDefaultParameters(Stellar_mass, z=0, halo_mass="Generate", hmsm = "Moster"):
-nfw  = profile_nfw.NFWProfile(M = 1E12, c = 10.0, z = 0.0, mdef = mdef) # Just for obj - these parameters do not matter (a quirk of colossus)
-    rho, rs = nfw.fundamentalParameters( (10**halo_mass)*cosmo.h, conc, z, mdef)
-    rs /= cosmo.h
-    rho *= cosmo.h**2
     if(hmsm == "Moster"):
         mdef = "200c"
     elif(hmsm == "Grylls19"):
