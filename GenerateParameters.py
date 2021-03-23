@@ -14,11 +14,11 @@ import SDSSExtractor
 import darkmatter
 from Utility import binnedMean
 
-def GetDefaultParameters(Stellar_mass, z=0, halo_mass="Generate", hmsm = "Moster"):
+def GetDefaultParameters(Stellar_mass, z=0, halo_mass="Generate", hmsm = "Moster", retmass = False):
     if(hmsm == "Moster"):
         mdef = "200c"
     elif(hmsm == "Grylls19"):
-        mdef = "mvir"
+        mdef = "vir"
     else:
         assert False, "GetDefaultParameters - Unrecognised hmsm parameter {}".format(hmsm)
 
@@ -46,6 +46,9 @@ def GetDefaultParameters(Stellar_mass, z=0, halo_mass="Generate", hmsm = "Moster
     radius = SDSSExtractor.SDSS_Sizes_Fit(Stellar_mass, z)
     n = SDSSExtractor.SDSS_Sersic_Fit(Stellar_mass) * (1. + z)**-1
     
+    if retmass:
+        return radius, n, halo_mass, conc
+
     return radius, n, rs, rho
 
 

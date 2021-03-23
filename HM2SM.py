@@ -6,7 +6,7 @@ from scipy.interpolate import interp1d
 from scipy.optimize import curve_fit
 from tqdm import tqdm
 
-sys.path.insert(0, "/Users/chris/Documents/ProjectSigma/D-STEEL/dsteel/")
+sys.path.insert(0, "/Users/chris/Documents/ProjectSigma/DREAM/dream/")
 from semi_analytic_catalog import generate_parents_catalogue
 from colossus.cosmology import cosmology
 cosmo = cosmology.setCosmology("planck18")
