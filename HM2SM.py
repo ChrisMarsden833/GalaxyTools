@@ -83,9 +83,16 @@ def stellar_mass_to_halo_mass(stellar_mass, z, formula="Grylls19", mdef = 'vir')
         res = 2. * n * m * ((10**(m-mn))**-beta + (10**(m-mn))**gamma)**-delta
         return res
 
-    def get_sm_fixedz(sm, z_fixed):
+    def get_sm_fixedz(sm, z_fixed, volume = 50):
 
-        catalog = generate_parents_catalogue("tinker08", 200, (10, 16, 0.1), 0.0, cosmo.h, mdef=mdef)
+        try:
+            catalog = generate_parents_catalogue("tinker08", volume, (8, 16, 0.1), z_fixed, cosmo.h, mdef=mdef)
+        except Exception as e:
+            try:                
+                catalog = generate_parents_catalogue("tinker08", volume, (8, 10, 0.1), z_fixed, cosmo.h, mdef=mdef)
+            except Exception as e:
+                raise Exception("Failed In generating catalog, exception was: {}. z was {}.".format(e, z))
+
         catalog_sm = halo_mass_to_stellar_mass(catalog, z_fixed, formula=formula) # With scatter
         width = 0.05
         sm_range = np.arange(5, 15, width)
@@ -96,18 +103,24 @@ def stellar_mass_to_halo_mass(stellar_mass, z, formula="Grylls19", mdef = 'vir')
 
         safe_mask = ~np.isnan(means)
 
-        snip_low = 20
+        snip_low = 10
 
         p0 = [0.5, 12, 0.52, 0.02, 1] # Initial Guess - this speeds up the process 'considerably'
-        params = curve_fit(similar_function, means[safe_mask][snip_low:],
-                           sm_range[safe_mask][snip_low:], p0 = p0)
-        params = params[0]
 
-        halo_domain = np.arange(6, 20, 0.1)
-        sm_domain = similar_function(halo_domain, params[0], params[1], params[2], params[3], params[4])
-        sm2hm = interp1d(sm_domain, halo_domain, bounds_error = False, fill_value="extrapolate")
-        mass = sm2hm(sm)
-        return mass
+        try:
+            params = curve_fit(similar_function, means[safe_mask][snip_low:],
+                                sm_range[safe_mask][snip_low:], p0 = p0)
+            params = params[0]
+    
+            halo_domain = np.arange(6, 20, 0.1)
+            ism_domain = similar_function(halo_domain, params[0], params[1], params[2], params[3], params[4])
+            sm2hm = interp1d(ism_domain, halo_domain, bounds_error = False, fill_value="extrapolate")
+            mass = sm2hm(sm)
+            return mass
+        except Exception as e:
+            print(e) # You get into trouble otherwise
+            sm2hm = interp1d(sm_range, means, bounds_error=False, fill_value='extrapolate')
+            return sm2hm(sm)
 
 
     stellar_mass = np.array(stellar_mass)

@@ -14,13 +14,15 @@ import SDSSExtractor
 import darkmatter
 from Utility import binnedMean
 
-def GetDefaultParameters(Stellar_mass, z=0, halo_mass="Generate", hmsm = "Moster", retmass = False):
-    if(hmsm == "Moster"):
-        mdef = "200c"
-    elif(hmsm == "Grylls19"):
-        mdef = "vir"
-    else:
-        assert False, "GetDefaultParameters - Unrecognised hmsm parameter {}".format(hmsm)
+def GetDefaultParameters(Stellar_mass, z=0, halo_mass="Generate", hmsm = "Moster", retmass = False, mdef = 'auto'):
+    
+    if mdef == 'auto':
+        if(hmsm == "Moster"):
+            mdef = "200c"
+        elif(hmsm == "Grylls19"):
+            mdef = "vir"
+        else:
+            assert False, "GetDefaultParameters - Unrecognised hmsm parameter {}".format(hmsm)
 
     # Do input validation to check that halo mass is a string
     if isinstance(halo_mass, str):

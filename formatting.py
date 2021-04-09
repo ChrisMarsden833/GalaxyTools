@@ -9,6 +9,7 @@ def pltSetup(plt):
     plt.rcParams['xtick.minor.visible']=True
     plt.rcParams['axes.linewidth']=1
     plt.rcParams['axes.prop_cycle'] = cycler(color='bgrcmyk')
+    plt.rcParams['errorbar.capsize'] = 3
 
 def niceplot(ax, font_override=12.):
     """ Simple function to format plots in a way that makes them paper approprate.
