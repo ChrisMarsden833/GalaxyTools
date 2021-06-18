@@ -34,8 +34,24 @@ def get_data(path="~/data/SDSS/Catalog_SDSS_complete.dat"):
 
     return StellarMass, SersicIndex, Size, VMax
 
+def get_data_manga(path="~/data/MANGa/MANGa.csv"):
+    """ Internal function to read in (and filter) the SDSS catalog
+    :params path: string, the path to the SDSS file.
+    :returns StellarMass, SersicIndex, Size, VMax: numpy arrays of approprate
+    propertues.
+    """
+    df = pd.read_csv(path)  # Read in the file
 
-def Assign_Size(input_masses, scatter = False, mag = 1):
+    # Grab useful fields
+    SersicIndex = np.array(df['Total_n'])
+    StellarMass = np.array(df['Mstar'])
+    VMax = np.array(df["Vmax"])
+    Re = np.array(df["full_radius"])
+
+    return StellarMass, SersicIndex, Re, VMax
+
+
+def Assign_Size(input_masses, scatter = False, mag = 1, retError = False, data = "SDSS"):
     """ Function to assign sizes based on empirical relations derived from the
     SDSS. Only valid for low redshifts.
     :param input_masses: numpy array of Stellar Masses [log10 M_sun]
@@ -45,7 +61,14 @@ def Assign_Size(input_masses, scatter = False, mag = 1):
     can be useful.
     returns: numpy array of galaxy sizes [kpc]
     """
-    StellarMass, SersicIndex, Size, VMax = get_data()
+
+    if data == "SDSS":
+        StellarMass, SersicIndex, Size, VMax = get_data()
+    elif data == "MANGa":
+        StellarMass, SersicIndex, Size, VMax = get_data_manga()
+    else:
+        assert False, "Unknown data source '{}'".format(data)
+
 
     # Bin by sm
     width = 0.05
@@ -97,7 +120,7 @@ def Assign_Size(input_masses, scatter = False, mag = 1):
 
     return result
 
-def AssignSersicIndex(input_masses, scatter=False, mag=1):
+def AssignSersicIndex(input_masses, scatter=False, mag=1, data = "SDSS"):
     """ Function to assign Sersic Indexes based on empirical relations derived from the
     SDSS. Only valid  at low redshifts.
     :param input_masses: numpy array of Stellar Masses [log10 M_sun]
@@ -107,7 +130,13 @@ def AssignSersicIndex(input_masses, scatter=False, mag=1):
     can be useful.
     returns: numpy array of galaxy sersic indexes [dimensionless]
     """
-    StellarMass, SersicIndex, Size, VMax = get_data()
+
+    if data == "SDSS":
+        StellarMass, SersicIndex, Size, VMax = get_data()
+    elif data == "MANGa":
+        StellarMass, SersicIndex, Size, VMax = get_data_manga()
+    else:
+        assert False, "Unknown data source '{}'".format(data)
 
     # Bin up the SDSS
     bins = np.arange(0.0, 30.0, 0.05)
@@ -181,6 +210,38 @@ def SDSS_Sizes_Fit(sm, z=0, incGamma = "Marsden"):
 
     return res
 
+def MANGa_Sizes_Fit(sm, z=0, incGamma = "Marsden"):
+
+    args = [3.04965733e-03, 9.67029240e-02, -3.91008421e+01, 2.04401878e-01, -4.29464785e+00]
+    def gammaFunc(sm, a1, a2, a3, a4, a5):
+        return a1 * sm * ((sm * a2) ** a3 + (sm * a4) ** a5) ** -1
+
+    smp = 10**(sm)
+    res = (10**-1.02904886) * (smp**0.11888986) * (1 + smp/(10**10.14907206))**0.64171583
+    # This is now just a modified version of the RN/Mosleh fit...
+
+    isarray_sm = True if hasattr(sm, "__len__") else  False
+    isarray_z = True if hasattr(z, "__len__")  else  False
+
+    if isarray_sm and isarray_z:
+        assert len(sm) == len(z), "sm and z are unequal lengths: {} and {} respectively".format(len(sm), len(z))
+
+
+    if incGamma == "Marsden" or bool(incGamma) == True:
+        gamma = gammaFunc(sm, *args)
+    elif incGamma == "RN":
+        gamma = (1/0.85) * (sm - 10.75)
+        gamma[gamma < 0] = 0
+    elif bool(incGamma) == False:
+        gamma = 0
+    else:
+        assert False, "Unregonised type for incGamma {}. Value is: {}".format(str(type(incGamma)), incGamma)
+
+    res = res * (1.+z)**-gamma
+
+    return res
+
+
 
 def SDSS_Sersic_Fit(sm, minsm = 8, natmin = 1.6):
     res = 10**(-0.01072867 * sm**3 +\
@@ -195,6 +256,25 @@ def SDSS_Sersic_Fit(sm, minsm = 8, natmin = 1.6):
         if sm < minsm:
             res = natmin
     return res
+
+def MANGa_Sersic_Fit(sm, minsm = 8, natmin = 1.6):
+    res = 10**(-0.01903256 * sm**3 +\
+                 0.57133231 * sm**2 +\
+               -5.48853078 * sm +\
+               17.22904271 )
+    isarray_sm = True if hasattr(sm, "__len__") else  False
+
+    if isarray_sm:
+        res[res < natmin] = natmin
+        res[sm < minsm]  = natmin
+    else:
+        if res < natmin:
+            res = natmin
+        elif sm < minsm:
+            res = natmin
+
+    return res
+
 
 def n2SM(n):
     # Sersic Index to stellar mass

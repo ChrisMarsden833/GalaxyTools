@@ -5,9 +5,11 @@ from scipy.stats import binned_statistic
 from scipy.interpolate import interp1d
 from scipy.optimize import curve_fit
 from tqdm import tqdm
+import os.path
 
 sys.path.insert(0, "/Users/chris/Documents/ProjectSigma/DREAM/dream/")
 from semi_analytic_catalog import generate_parents_catalogue
+from halo_growth import Mass_acc_history_VDB_FS
 from colossus.cosmology import cosmology
 cosmo = cosmology.setCosmology("planck18")
 
@@ -35,6 +37,16 @@ def halo_mass_to_stellar_mass(halo_mass, z, formula="Moster", scatter=0.11):
         m_11, shm_norm_11, beta11, gamma11 = 1.195, -0.0247, -0.826, 0.329
     elif formula == "NoKnee":
         z_parameter = np.divide(z, z + 1)
+        m_10, shm_norm_10, beta10, gamma10 = 11.590, 0.0351, 0.0, 0.608
+        m_11, shm_norm_11, beta11, gamma11 = 1.195, -0.0247, -0.826, 0.329
+    elif formula == "Uluk":
+        z_parameter = np.divide(z - 0.1, z + 1)
+        m_10, shm_norm_10, beta10, gamma10 = 11.72, 0.032, 1.9, 0.49
+        m_11, shm_norm_11, beta11, gamma11 = 0.4, -0.02, -0.6, -0.1
+        if scatter != 0.0:
+            scatter = 0.1
+    elif formula == "GryllsNoz":
+        z_parameter = 1.0
         m_10, shm_norm_10, beta10, gamma10 = 11.590, 0.0351, 0.0, 0.608
         m_11, shm_norm_11, beta11, gamma11 = 1.195, -0.0247, -0.826, 0.329
     else:
@@ -79,29 +91,52 @@ def stellar_mass_to_halo_mass(stellar_mass, z, formula="Grylls19", mdef = 'vir')
     elif formula == "Moster":
         mdef = '200c'
 
-    def similar_function(m, n, mn, beta, gamma, delta):
-        res = 2. * n * m * ((10**(m-mn))**-beta + (10**(m-mn))**gamma)**-delta
-        return res
+    def get_sm_fixedz(sm, z_fixed):
 
-    def get_sm_fixedz(sm, z_fixed, volume = 50):
-
-        try:
-            catalog = generate_parents_catalogue("tinker08", volume, (8, 16, 0.1), z_fixed, cosmo.h, mdef=mdef)
-        except Exception as e:
-            try:                
-                catalog = generate_parents_catalogue("tinker08", volume, (8, 10, 0.1), z_fixed, cosmo.h, mdef=mdef)
-            except Exception as e:
-                raise Exception("Failed In generating catalog, exception was: {}. z was {}.".format(e, z))
-
-        catalog_sm = halo_mass_to_stellar_mass(catalog, z_fixed, formula=formula) # With scatter
         width = 0.05
         sm_range = np.arange(5, 15, width)
 
-        means = binned_statistic(catalog_sm, catalog, bins=sm_range)[0]
+
+        file = "/Users/Chris/Documents/ProjectSigma/GalaxyTools/data/Catalog_{}_{}.npy".format(np.round(z_fixed, 3), mdef)
+        means_file = "/Users/Chris/Documents/ProjectSigma/GalaxyTools/data/means_{}_{}.npy".format(np.round(z_fixed, 3), formula)
+
+        if not os.path.isfile(means_file):
+            print("Means does not exist, generating")
+
+            if os.path.isfile(file):
+                print("Catalog File Exists")
+                catalog = np.load(file)
+            else:
+                print("Catalog File does not exist")
+                z_domain = np.arange(0, 10, 0.1)
+
+                #high_track = Mass_acc_history_VDB_FS(16., z_domain, cosmo.h, cosmo.Om0)
+                #z2high = interp1d(z_domain, high_track)
+                #mhigh = np.round(z2high(z_fixed), 1)
+
+                #low_track = Mass_acc_history_VDB_FS(8, z_domain, cosmo.h, cosmo.Om0)
+                #z2low = interp1d(z_domain, low_track)
+                #mlow = np.round(z2low(z_fixed), 1)
+
+                catalog = generate_parents_catalogue("tinker08", 500, (11, 16, 0.1), z_fixed, cosmo.h, mdef="200c")
+                #np.save(file, catalog)
+
+            catalog_sm = halo_mass_to_stellar_mass(catalog, z_fixed, formula=formula) # With scatter
+            means = binned_statistic(catalog_sm, catalog, bins=sm_range)[0]
+
+            np.save(means_file, means)
+
+        else:
+            means = np.load(means_file)
 
         sm_range = sm_range[:-1] + width/2
 
         safe_mask = ~np.isnan(means)
+
+        """
+        def similar_function(m, n, mn, beta, gamma, delta):
+            res = 2. * n * m * ((10**(m-mn))**-beta + (10**(m-mn))**gamma)**-delta
+            return np.log10(res)
 
         snip_low = 10
 
@@ -111,16 +146,22 @@ def stellar_mass_to_halo_mass(stellar_mass, z, formula="Grylls19", mdef = 'vir')
             params = curve_fit(similar_function, means[safe_mask][snip_low:],
                                 sm_range[safe_mask][snip_low:], p0 = p0)
             params = params[0]
-    
             halo_domain = np.arange(6, 20, 0.1)
             ism_domain = similar_function(halo_domain, params[0], params[1], params[2], params[3], params[4])
             sm2hm = interp1d(ism_domain, halo_domain, bounds_error = False, fill_value="extrapolate")
             mass = sm2hm(sm)
+            print(mass)
             return mass
         except Exception as e:
-            print(e) # You get into trouble otherwise
-            sm2hm = interp1d(sm_range, means, bounds_error=False, fill_value='extrapolate')
-            return sm2hm(sm)
+            print(e) # You get into trouble otherwise"""
+
+        sm2hm = interp1d(sm_range, means, bounds_error=False, fill_value='extrapolate')
+
+        res = sm2hm(sm)
+
+        res[res > 15.5] = 15.5
+
+        return res
 
 
     stellar_mass = np.array(stellar_mass)
@@ -128,31 +169,26 @@ def stellar_mass_to_halo_mass(stellar_mass, z, formula="Grylls19", mdef = 'vir')
         assert len(z) == len(stellar_mass), "Length of sm ({}) != length z ({})".format(len(haloes), len(z))
 
         binwidth = 0.05
-        z_bins = np.arange(np.amin(z), np.amax(z), binwidth)
+        z_bins = np.arange(0, 10, binwidth)
         indexes = np.digitize(z, z_bins)-1
 
-        assert np.amax(indexes) < len(z_bins), "Maximum value of indexes ({}) is >= the number of bin elements ({}), which should not be possible".\
-            format(np.amax(indexes), len(z_bins))
-        assert np.amin(indexes) >= 0, "Minimum value of indexes ({}) is < 0.".format(np.amin(indexes))
-
         haloes_store = np.ones_like(stellar_mass) * -1
-
         track = 0
+        unique_steps = np.unique(indexes)
 
-        print("Working through {} unique redshift steps.".format(len(np.unique(indexes))))
-        for i, zstep in enumerate(tqdm(z_bins + binwidth/2.)):
-            indexes_in_step = indexes == i
-            track += np.sum(indexes_in_step)
-            redshift_sample = stellar_mass[indexes_in_step]
-            hm = get_sm_fixedz(redshift_sample, zstep)
-            haloes_store[indexes_in_step] = hm
-
-        assert np.sum(haloes_store == -1) == 0, "Logical error: {} elements of {} are still unassigned inside haloes_store. Track recorded {}"\
-            .format(np.sum(haloes_store == -1), len(stellar_mass), track)
+        for index in unique_steps:
+            redshift = z_bins[index]
+            sm = stellar_mass[indexes == index]
+            hm = get_sm_fixedz(sm, redshift)
+            haloes_store[indexes == index] = hm
 
         return haloes_store
     else:
-        hm = get_sm_fixedz(stellar_mass, z)
+        binwidth = 0.05
+        z_bins = np.arange(0, 10, binwidth)
+        index = np.digitize(z, z_bins)-1
+
+        hm = get_sm_fixedz(stellar_mass, z_bins[index])
         return hm
 
 

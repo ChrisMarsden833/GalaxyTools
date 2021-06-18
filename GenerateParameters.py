@@ -5,6 +5,7 @@ from itertools import cycle
 import pandas as pd
 
 from colossus.cosmology import cosmology
+from scipy.stats.stats import zscore
 cosmo = cosmology.setCosmology("planck18")
 from colossus.halo import profile_nfw
 from colossus.halo import concentration
@@ -14,15 +15,13 @@ import SDSSExtractor
 import darkmatter
 from Utility import binnedMean
 
-def GetDefaultParameters(Stellar_mass, z=0, halo_mass="Generate", hmsm = "Moster", retmass = False, mdef = 'auto'):
+def GetDefaultParameters(Stellar_mass, z=0, halo_mass="Generate", hmsm = "Grylls19", retmass = False, mdef = 'auto'):
     
     if mdef == 'auto':
         if(hmsm == "Moster"):
             mdef = "200c"
-        elif(hmsm == "Grylls19"):
-            mdef = "vir"
         else:
-            assert False, "GetDefaultParameters - Unrecognised hmsm parameter {}".format(hmsm)
+            mdef = "vir"
 
     # Do input validation to check that halo mass is a string
     if isinstance(halo_mass, str):
@@ -38,6 +37,7 @@ def GetDefaultParameters(Stellar_mass, z=0, halo_mass="Generate", hmsm = "Moster
     # Start to assign parameters
     
     # Dark Matter Halo
+    
     conc = concentration.concentration((10**halo_mass)*cosmo.h, mdef, z, model = 'ishiyama20')
     nfw  = profile_nfw.NFWProfile(M = 1E12, c = 10.0, z = 0.0, mdef = mdef) # Just for obj - these parameters do not matter (a quirk of colossus)
     rho, rs = nfw.fundamentalParameters( (10**halo_mass)*cosmo.h, conc, z, mdef)
@@ -45,8 +45,8 @@ def GetDefaultParameters(Stellar_mass, z=0, halo_mass="Generate", hmsm = "Moster
     rho *= cosmo.h**2
 
     # Radius and Sersic
-    radius = SDSSExtractor.SDSS_Sizes_Fit(Stellar_mass, z)
-    n = SDSSExtractor.SDSS_Sersic_Fit(Stellar_mass) * (1. + z)**-1
+    radius = SDSSExtractor.MANGa_Sizes_Fit(Stellar_mass, z, incGamma=True)
+    n = SDSSExtractor.MANGa_Sersic_Fit(Stellar_mass) * (1. + z)**-1
     
     if retmass:
         return radius, n, halo_mass, conc
