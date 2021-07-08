@@ -34,9 +34,11 @@ def binnedMean(bins, data2bin,  data2mean, vmax, error_on_mean = False):
     assert (len(data2bin) != 0) and (len(data2mean) != 0) and (len(vmax) != 0), "Length zero arrays - bins are probably not in range"
 
     # average
+
     array, edges, numbers = stats.binned_statistic(data2bin,  vmax * data2mean, statistic='sum', bins = bins)
 
     den = stats.binned_statistic(data2bin, vmax, statistic = 'sum', bins = bins)[0]
+
     nonzero_main = array != 0
     array[nonzero_main] = array[nonzero_main]/den[nonzero_main]
 
@@ -109,44 +111,21 @@ def sersicMassWithin(r, bulge_mass, re, n):
     gamma2 = tgamma(threemp_term, 0.0)
     res *= gamma1/gamma2
     return res
+    
+def b_n(n):
+    return 2.*n - (1./3.) + (.009876/n)
 
-def sersicProfile(r, bulge_mass, re, n):
-    """Get density from sersic profile"""
-    b_n = 2.*n - (1./3.) + (.009876/n)
-    gamma = gamma_lower(2 * n, b_n)
-    sigma_e = (10**bulge_mass) / (re**2 * np.pi * 2. * 2. * n * np.exp(b_n) * gamma / (b_n** (2 * n)) )    
-    power = 1./n
-    internal_term = r/re
-    result = sigma_e * np.exp(-b_n * (internal_term**power - 1.))
-    return result
+def Ie(mstar, re, n):
+    return mstar / (2. * np.pi * re**2 * n * np.exp(b_n(n)) * gamma(2.*n) / b_n(n)**(2.*n))
 
-def sersicProfileL(r, L, re, n, gradient = False):
-    """Get density from sersic profile"""
-    b_n = 2.*n - (1./3.) + (.009876/n)
-    gamma = gamma_lower(2 * n, b_n)
-    sigma_e = L / (re**2 * np.pi * 2. * 2. * n * np.exp(b_n) * gamma / (b_n** (2 * n)) )    
-    power = 1./n
-    internal_term = r/re
+def sersicProfile(r, mstar, re, n):
+    return Ie(mstar, re, n) * np.exp(-b_n(n) * ( (r/re)**(1./n) - 1 ))
+                             # np.exp(-b_n * ( (r/re)**(1./n) - 1 ))
 
-    result = sigma_e * np.exp(-b_n * (internal_term**power - 1.))
-    if not gradient:
-        return result
-    else:
-        result *= (-b_n * internal_term ** (1/n) )/(n*r)
-        return result
-
-def PrugDensityL(r, L, re, n):
-    b_n = 2.*n - (1./3.) + (.009876/n)
+def PrugDensity(r, mstar, re, n, ML = 1.0):
     p_n = 1. - .6097/n  + .00563/(n*n)
-    rho0 = (sersicProfileL(0, L, re, n) * (b_n**(n * (1 - p_n ))) * gamma(2*n) ) / ( 2. * re * gamma( n * (3 - p_n)))
-    return rho0 * (r/re)**(-p_n) * np.exp(-b_n * (r/re)**(1/n))
-
-def PrugDensityM(r, mass, re, n):
-    b_n = 2.*n - (1./3.) + (.009876/n)
-    p_n = 1. - .6097/n  + .00563/(n*n)
-    rho0 = (sersicProfile(0, mass, re, n) * (b_n**(n * (1 - p_n ))) * gamma(2*n) ) / ( 2. * re * gamma( n * (3 - p_n)))
-    return rho0 * (r/re)**(-p_n) * np.exp(-b_n * (r/re)**(1/n))
-
+    rho0 = ( Ie(mstar, re, n) * ML * np.exp(b_n(n)) * b_n(n)**(n*(1-p_n)) * (gamma(2.*n)/(2.*re*gamma(n * (3 - p_n))))) 
+    return rho0 * (r/re)**(-p_n) * np.exp(-b_n(n) * (r/re)**(1/n))
 
 def NFW_massWithin(Rs, rho, Re, profile = "NFW"):
     print("Profile = {}".format(profile))
@@ -171,26 +150,132 @@ def disk_massWithin(R, disk_mass, h):
     res = 2 * np.pi * sigma_0 * h**2 * mfactor
     return res
 
-def get_values(Mr, log_sig):
-    if  -22.5 > Mr:
-        if log_sig > 2.4:
-            R0, R8, R1 = 8, 4, 3.5
+def get_values(Mr, log_sig, ellipticals = True):
+    if ellipticals:
+        if  -22.5 > Mr:
+            if log_sig > 2.4:
+                R0, R8, R1 = 8, 4, 3.5
+            else:
+                R0, R8, R1 = 7, 3, 3
+        elif -21.5 > Mr > -22.5:
+            if log_sig > 2.3:
+                R0, R8, R1 = 5, 4, 3
+            else:
+                R0, R8, R1 = 5, 3, 2.5
+        elif Mr > -21.5:
+            if log_sig > 2.2:
+                R0, R8, R1 = 5, 4, 3
+            else:
+                R0, R8, R1 = 3, 2.5, 2
         else:
-            R0, R8, R1 = 7, 3, 3
-    elif -21.5 > Mr > -22.5:
-        if log_sig > 2.3:
-            R0, R8, R1 = 5, 4, 3
-        else:
-            R0, R8, R1 = 5, 3, 2.5
-    elif Mr > -21.5:
-        if log_sig > 2.2:
-            R0, R8, R1 = 5, 4, 3
-        else:
-            R0, R8, R1 = 3, 2.5, 2
+            assert False, "Unknown value of Mr ({})".format(Mr)
     else:
-        assert False, "Unknown value of Mr ({})".format(Mr)
+        if -21.5 > Mr:
+            if log_sig > 2.3:
+                R0, R8, R1 = 6.5, 4.5, 3.0
+            elif 2.2 < log_sig <= 2.3:
+                R0, R8, R1 = 5, 2.5, 2.0
+            else:
+                R0, R8, R1 = 2., 1., 1.
+        elif -20.5 > Mr >= -21.5:
+            if log_sig > 2.2:
+                R0, R8, R1 = 5.5, 4., 3.
+            elif  2.1 < log_sig < 2.2:
+                R0, R8, R1 = 3., 1.5, 1.5
+            else:
+                R0, R8, R1 = 2., 1.5, 1.5
+        elif Mr > -20.5:
+            if log_sig > 2.1:
+                R0, R8, R1 = 4., 3.5, 3.
+            elif 2 < log_sig < 2.1:
+                R0, R8, R1 = 4., 3., 3.
+            else:
+                R0, R8, R1 = 1.5, 1.5, 1.5
+        else:
+            assert False, "Unknown value of Mr ({})".format(Mr)
 
     return R0, R8, R1
+
+class IMF_Galaxy:
+    def __init__(self, Lum, Re, n, R0, R1):
+        self.Lum = Lum
+        self.Re = Re
+        self.n = n
+        self.R0 = R0
+        self.R1 = R1
+
+    def alpha(self, Y):
+        if Y >= 1:
+            return 0.    
+        else:
+            alpha = (self.R0 - self.R1)/self.R1
+        return alpha
+
+    def ML(self, r):
+        Y = r/self.Re
+        alpha = self.alpha(Y)
+        if hasattr(r, "__len__"):
+            res = np.zeros_like(r)
+            mask = Y < 1.0
+            res[mask] = self.R1 * (1. + alpha - alpha * Y)
+            res[Y >= 1] = self.R1
+            return res
+        else:
+            if Y < 1:
+                return self.R1 * (1. + alpha - alpha * Y)
+            else:
+                return self.R1
+
+    def rhoX_integrand_simple(self, Y, y):
+        alpha = self.alpha(Y)
+        res  = ( 1/(Y * np.sqrt(Y**2 - y**2)) ) * np.exp(-b_n(self.n) * ( (Y)**(1./self.n) - 1 )) \
+            * ( (self.n * alpha * Y) + b_n(self.n) * (alpha - alpha * Y) * Y**(1./self.n))
+        return res
+
+    def rhoX_simple(self, r):
+        y = r/self.Re
+        Ymax = 1.0
+
+        if hasattr(r, "__len__"):
+            res = np.zeros_like(r)
+            for i, yi in enumerate(y):
+                if yi < 1:
+                    res[i] = integrate.quad(self.rhoX_integrand_simple, yi, Ymax, args = (y), full_output = 1)[0]
+        else:
+            if y < 1:
+                res = integrate.quad(self.rhoX_integrand_simple, y, Ymax, args = (y), full_output = 1)[0]
+            else:
+                res = 0.
+
+        I0 = Ie(self.Lum, self.Re, self.n)
+        res *= (self.R1 * I0) / (np.pi * self.Re * self.n)
+        return res
+
+    def rho_IMF_simple(self, r):
+    
+        basic_density = PrugDensity(r, self.Lum, self.Re, self.n, ML=self.R1)
+        extra_density = self.rhoX_simple(r)
+
+        return basic_density + extra_density
+        
+    def projected_density_IMF_simple(self, r):
+        return self.ML(r) * sersicProfile(r, self.Lum, self.Re, self.n)
+
+    def get_total_mass(self):
+
+        def proj_integrand(r):
+            return 2. * np.pi * r * self.projected_density_IMF_simple(r)
+
+        res = integrate.quad(proj_integrand, 0, 10000.*self.Re, full_output = 1)[0]
+        return res
+
+    def get_mass_within_deproj(self, r):
+        def deprojected_integrand(r):
+            return 4. * np.pi * r**2 * self.rho_IMF_simple(r)
+        res = integrate.quad(deprojected_integrand, 0, r, full_output = 1)[0]
+        return res
+    
+"""
 
 def ML(r, Mr, log_sig, Re, gradient = False):
 
@@ -280,46 +365,7 @@ def rho_IMF_num(r_domain, L, re, n, Mr, log_sig):
 def projected_mass_integrand(r, L, re, n, Mr, log_sig):
     return 2.*np.pi*r * sersicProfileL(r, L, re, n) * ML(r, Mr, log_sig, re)
 
-def IMF_get_everything(L, re, n, Mr, log_sig, usecpp = True):
-    r_domain, spacing = np.linspace(0.00001, 50*re, 10000, retstep=True)
 
-    projected_density = sersicProfileL(r_domain, L, re, n) * ML(r_domain, Mr, log_sig, re)
-
-    projected_mass = np.cumsum(2.*np.pi*r_domain * spacing * projected_density)
-
-    res = integrate.quad(projected_mass_integrand, 0., np.inf, args = (L, re, n, Mr, log_sig), full_output = 1 )
-
-    total_mass = res[0]
-
-    projected_mass2radius = interp1d(projected_mass, r_domain)
-    projected_half_mass_radius = projected_mass2radius(total_mass/2)
-
-    if usecpp:
-        density = Sigma(ApertureSize=r_domain,
-            Bulge_mass=12.,
-              Bulge_Re=re,
-               Bulge_n=n,
-            Luminosity=L,
-             magnitude=Mr,
-             pre_sigma=log_sig,
-                  mode=6,
-                 debug=False,
-               threads=8,
-          library_path="/Users/chris/Documents/ProjectSigma/VelocityDispersion/lib/libsigma.so")
-    else:
-        density = rho_IMF(r_domain, L, re, n, Mr, log_sig)
-
-    cum_mass = np.cumsum(density * 4.*np.pi*r_domain**2 * spacing )
-
-    assert abs(np.log10(cum_mass[-1]) - np.log10(total_mass) < 0.1), "Error, total masses are inaccurate {} {}".format(np.log10(cum_mass[-1]),
-                np.log10(total_mass))
-   
-    radius2mass = interp1d(r_domain, cum_mass)
-    
-    mass_within_projected_halfmass = radius2mass(projected_half_mass_radius)
-    mass_within_projected_halfmass8 = radius2mass(projected_half_mass_radius/8)
-    
-    return np.log10(total_mass), projected_half_mass_radius, mass_within_projected_halfmass, mass_within_projected_halfmass8
 
 def total_mass_IMF(L, re, n, Mr, log_sig):
     r_domain, spacing = np.linspace(0.001, 20*re, 1000, retstep=True)
@@ -332,7 +378,7 @@ def mass_within_IMF(r, L, re, n, Mr, log_sig):
     density = rho_IMF(r_domain, L, re, n, Mr, log_sig)
     mass = np.sum( density * 4*np.pi*r_domain**2 * spacing )
     return mass
- 
+""" 
 
 def mstar2LumandMag(mstar):
     df = pd.read_csv("/Users/chris/data/MANGa/MANGa.csv")
@@ -352,3 +398,32 @@ def mstar2LumandMag(mstar):
     log_lum = 2.5924279257970944 + 0.7236937315796155 * mstar
 
     return 10**log_lum, mstar2mag(mstar)
+
+def lum2R1R0(lum):
+    loglum = np.log10(lum)
+
+    fixed = 1.5
+    stop = 9.5
+
+    ### R1 ###
+    gradient = 0.2 #0.9
+    intercept = fixed - gradient * stop
+    R1 = gradient * loglum + intercept
+
+    #R1[loglum > 11] += 0.1*loglum[loglum > 11]
+
+    ### R0 ###
+    gradient = 0.5 #3.2
+    intercept = fixed - gradient * stop
+    R0 = gradient * loglum + intercept
+
+    #R0[loglum > 11] += 0.1*loglum[loglum > 11]
+
+    
+
+    R1[loglum < stop] = fixed
+    R0[loglum < stop] = fixed
+
+    return R1, R0
+
+
