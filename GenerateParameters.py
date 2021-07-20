@@ -54,6 +54,10 @@ def GetDefaultParameters(Stellar_mass, z=0, halo_mass="Generate", hmsm = "Grylls
     if get_vcirc:
         vcirc = nfw.Vmax()
         return radius, n, rs, rho, vcirc
+    
+    if hasattr(rs, "__len__"):
+        rs[np.isnan(rs)] = 0.0
+        rho[np.isnan(rho)] = 0.0
 
     return radius, n, rs, rho
 

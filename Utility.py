@@ -266,7 +266,7 @@ class IMF_Galaxy:
         def proj_integrand(r):
             return 2. * np.pi * r * self.projected_density_IMF_simple(r)
 
-        res = integrate.quad(proj_integrand, 0, 10000.*self.Re, full_output = 1)[0]
+        res = integrate.quad(proj_integrand, 0, 10.*self.Re, full_output = 1)[0]
         return res
 
     def get_mass_within_deproj(self, r):
@@ -398,6 +398,12 @@ def mstar2LumandMag(mstar):
     log_lum = 2.5924279257970944 + 0.7236937315796155 * mstar
 
     return 10**log_lum, mstar2mag(mstar)
+
+def lum2mstar(lum):
+    loglum = np.log10(lum)
+    mstar = (loglum - 2.5924279257970944)/0.7236937315796155
+    return mstar
+
 
 def lum2R1R0(lum):
     loglum = np.log10(lum)
