@@ -193,6 +193,10 @@ def stellar_mass_to_halo_mass(stellar_mass, z, formula="Grylls19", mdef = 'vir')
 
 
 if __name__ == "__main__":
-    stellar_masses  = [11, 10.5, 12]
-    z = [0, 1, 1.0]
+    cosmo = cosmology.setCosmology("planck18")
+    
+    stellar_masses  = [11.5]
+    z = 0.0
     haloes = stellar_mass_to_halo_mass(stellar_masses, z)
+
+    print(haloes)

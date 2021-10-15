@@ -128,7 +128,7 @@ def PrugDensity(r, mstar, re, n, ML = 1.0):
     return rho0 * (r/re)**(-p_n) * np.exp(-b_n(n) * (r/re)**(1/n))
 
 def NFW_massWithin(Rs, rho, Re, profile = "NFW"):
-    print("Profile = {}".format(profile))
+    #print("Profile = {}".format(profile))
     if profile == "NFW":
         """Mass within Re of halo with NFW profile"""
         x = Re/Rs
